@@ -10,23 +10,26 @@ RUN wget https://dl.google.com/android/repository/platform-tools-latest-linux.zi
     rm platform-tools-latest-linux.zip && \
     ln -s /platform-tools/adb /usr/bin/adb
 
-# Create user
-RUN useradd -m abc && \
-    usermod -G users abc
-
 # Set remote and local dirs
 WORKDIR /app
 ENV SOURCE=./
-RUN chown abc:abc /app
-USER abc
+
+# Add globally safe directory
+RUN git config --global --add safe.directory /app/AzurLaneAutoScript
+
+# Add Chinese-friendly mirrors for conda
+RUN conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/bioconda/ && \
+    conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main/ && \
+    conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/free/ && \
+    conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge/
 
 # Install the base conda environment
 ENV PYROOT=/app/pyroot
 RUN mamba create --prefix $PYROOT python==3.7.6 -y
 
 # Install the requirements to the conda environment
-COPY --chown=abc:abc $SOURCE/requirements.txt /app/requirements.txt
-RUN $PYROOT/bin/pip install -r /app/requirements.txt
+COPY $SOURCE/requirements.txt /app/requirements.txt
+RUN $PYROOT/bin/pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -r /app/requirements.txt
 
 # Initial download of UIAutomator2 is really slow with appetizer mirror (outside of China), switch to github
 RUN sed -i "s#path = mirror_download(url,#path = cache_download(url,#" $PYROOT/lib/python3.7/site-packages/uiautomator2/init.py
